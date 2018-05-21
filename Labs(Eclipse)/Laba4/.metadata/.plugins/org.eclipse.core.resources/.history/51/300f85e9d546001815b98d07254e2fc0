@@ -1,0 +1,248 @@
+import java.awt.BorderLayout;
+import java.awt.Color;
+import java.awt.Container;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseAdapter;
+import java.awt.geom.Rectangle2D;
+
+import javax.swing.JButton;
+import javax.swing.JComboBox;
+import javax.swing.JOptionPane;
+import javax.swing.JPanel;
+import javax.swing.JLabel;
+//import javax.swing.JFileChooser;
+//import javax.swing.filechooser.FileNameExtensionFilter;
+import javax.swing.JFrame;
+
+public class FractalExplorer {
+    
+    //размер отображени€ 
+    private int displaySize;
+    
+   //обраща€сь к экземпл€ру класса JImageDisplay, мы сможем использовать различные методы дл€ вычислени€ фрактала
+    private JImageDisplay image;
+    
+    //поддержка нескольких фракталов
+    private JComboBox<String> chooseFractal;
+   
+    private JFrame frame;
+    
+   //обраща€сь к экземпл€ру класса FractalGenerator, мы сможем генерировать фракталы
+    private FractalGenerator generate;
+    
+    //диапазон отображени€ плоскости изображени€
+    Rectangle2D.Double range;
+
+    //класс, в котором обрабатываетс€ нажатие на кнопку сброса отображени€
+    private class ResetHandler implements ActionListener 
+    { 
+        public void actionPerformed(ActionEvent e) 
+        { 
+            range = new Rectangle2D.Double();
+            generate.getInitialRange(range);
+            
+            drawFractal();
+        } 
+    }
+    
+    private class FractalHandler implements ActionListener 
+    { 
+        public void actionPerformed(ActionEvent e) 
+        { 
+            String cmd = e.getActionCommand(); 
+
+            if (e.getSource() == chooseFractal) 
+            { 
+                String selectedItem = chooseFractal.getSelectedItem().toString();
+
+                if(selectedItem.equals(Mandelbrot.nameString()))
+                {
+                    generate = new Mandelbrot();
+                }
+                else if(selectedItem.equals(Tricorn.nameString()))
+                {
+                    generate = new Tricorn();
+                }
+                else if(selectedItem.equals(BurningShip.nameString()))
+                {
+                    generate = new BurningShip();
+                }
+                else
+                {
+                    JOptionPane.showMessageDialog(null, "ќтображаемый объект не выбран");
+                    return;
+                }
+                
+                range = new Rectangle2D.Double();
+                generate.getInitialRange(range);
+                
+                drawFractal();
+            } 
+            else if (cmd.equals("reset")) 
+            { 
+                range = new Rectangle2D.Double();
+                generate.getInitialRange(range);
+                
+                drawFractal();
+            } 
+            /*else if (cmd.equals("save")) 
+            { 
+                JFileChooser choose = new JFileChooser();
+                
+                FileNameExtensionFilter filter = new FileNameExtensionFilter("PNG Images", "png");
+                choose.setFileFilter(filter);
+                choose.setAcceptAllFileFilterUsed(false);
+                
+                if(choose.showSaveDialog(null) == JFileChooser.APPROVE_OPTION)
+                {
+                    try 
+                    {
+                        File fd = choose.getSelectedFile();
+                        String filePath = fd.getPath();
+                        if(!filePath.toLowerCase().endsWith(".png"))
+                        {
+                            fd = new File(filePath + ".png");
+                        }
+                        
+                        ImageIO.write(_image.getImage(), "png", fd);
+                    } 
+                    catch (IOException exc) 
+                    {
+                        JOptionPane.showMessageDialog(null, "Error: couldn't save file ( " + exc.getMessage() + " )");
+                        
+                        exc.printStackTrace();
+                    }
+                }
+            } 
+            else
+            {
+                JOptionPane.showMessageDialog(null, "Error: FractalHandler unknown action");
+            }*/
+        } 
+    }
+    
+    //класс, в котором отслеживаетс€ координата нажати€ кнопки мыши и увеличивает масштаб
+    //в нажатой области
+    private class MouseHandler extends MouseAdapter 
+    { 
+        public void mouseClicked(MouseEvent e)
+        { 
+            double xCoord = FractalGenerator.getCoord(range.x, range.x + range.width, displaySize, e.getX());
+            double yCoord = FractalGenerator.getCoord(range.y, range.y + range.height, displaySize, e.getY());
+            
+            generate.recenterAndZoomRange(range,xCoord, yCoord, 0.5);
+            
+            drawFractal();
+        } 
+    }
+    
+    //конструктор, принимающий размер отображени€ в качестве аргумента и сохран€ющий в определенное
+    //поле, и инициализирующий объекты диапазона и генератора фракталов
+    public FractalExplorer(int dispSize)
+    {
+        displaySize = dispSize;
+        
+        generate = new Mandelbrot();
+        
+        range = new Rectangle2D.Double();
+        generate.getInitialRange(range);
+    }
+    
+    //метод, инициализирующий JFrame, который содержит объект JImageDisplay, отображающий 
+    //фрактал, кнопку дл€ сброса отображени€, панель выбора фракталов, и кнопку сохранени€
+    //изображени€
+    public void createAndShowGUI()
+    {
+        JFrame frame = new JFrame("Fractal Explorer");
+        frame.setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        Container contentPane = frame.getContentPane();
+
+        contentPane.setLayout(new BorderLayout());
+        
+        FractalHandler handler = new FractalHandler();
+        
+        /**
+         * Choose Fractal Panel
+         */
+        JPanel fractalPanel = new JPanel();
+        
+        JLabel panelLabel = new JLabel("Fractal: ");
+        fractalPanel.add(panelLabel);
+        
+        chooseFractal = new JComboBox<String>();
+        chooseFractal.addItem(Mandelbrot.nameString());
+        chooseFractal.addItem(Tricorn.nameString());
+        chooseFractal.addItem(BurningShip.nameString());
+        chooseFractal.addActionListener(handler);
+        
+        fractalPanel.add(chooseFractal);
+        
+        contentPane.add(fractalPanel, BorderLayout.NORTH);
+
+        image = new JImageDisplay(displaySize, displaySize);
+        contentPane.add(image, BorderLayout.CENTER);
+        
+        JPanel buttonsPanel = new JPanel();
+        
+        JButton resetButton = new JButton("Reset Display");
+        resetButton.setActionCommand("reset"); 
+        resetButton.addActionListener(handler);
+        buttonsPanel.add(resetButton);
+        
+        contentPane.add(buttonsPanel, BorderLayout.SOUTH);
+        
+        contentPane.addMouseListener(new MouseHandler());
+        
+        frame.pack();
+        frame.setVisible(true);
+        frame.setResizable(false);
+    }
+    
+    //вспомогательный метод дл€ отображени€ фрактала
+    public void drawFractal()
+    {
+        double xCoord = 0;
+        double yCoord = 0;
+        
+        float numIters = 0;
+        float hue = 0;
+        
+        int rgbColor = 0;
+        
+        for(int x = 0 ; x < displaySize ; ++x)
+        {
+        	// x - координата пиксел€; xCoord - координата в пространстве фрактала 
+            xCoord = FractalGenerator.getCoord(range.x, range.x + range.width, displaySize, x);
+            
+            for(int y = 0 ; y < displaySize ; ++y)
+            {
+            	// y - координата пиксел€; yCoord - координата в пространстве фрактала 
+                yCoord = FractalGenerator.getCoord(range.y, range.y + range.height, displaySize, y);
+                
+                numIters = generate.numIterations(xCoord, yCoord);
+                if(numIters < 0)
+                {
+                    rgbColor = 0;
+                }
+                else
+                {
+                    hue = 0.7f + numIters / 200f;
+                    rgbColor = Color.HSBtoRGB(hue, 1f, 1f);
+                }
+                
+                image.drawPixel(x, y, rgbColor);
+            }
+        }
+        
+        image.repaint();
+    }
+    
+    public static void main(String[] args) 
+    {
+        FractalExplorer explorer = new FractalExplorer (400);
+        explorer.createAndShowGUI();
+        explorer.drawFractal();
+    } 
+}
